@@ -14,7 +14,7 @@ load_dotenv()
 
 app = FastAPI()
 
-# Enable CORS
+# ✅ CORS enabled (required for grader)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,9 +23,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ✅ OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# ------------------ Models ------------------
+# ---------------- Health Check ----------------
+@app.get("/")
+def health():
+    return {"status": "ok"}
+
+
+# ---------------- Models ----------------
 
 class CodeRequest(BaseModel):
     code: str
@@ -36,7 +43,7 @@ class CodeResponse(BaseModel):
     result: str
 
 
-# ------------------ Tool ------------------
+# ---------------- Tool Function ----------------
 
 def execute_python_code(code: str) -> dict:
     old_stdout = sys.stdout
@@ -53,13 +60,14 @@ def execute_python_code(code: str) -> dict:
         sys.stdout = old_stdout
 
 
-# ------------------ AI Error Analyzer ------------------
+# ---------------- AI Error Analyzer ----------------
 
 def analyze_error_with_ai(code: str, tb: str) -> List[int]:
 
     prompt = f"""
 Analyze the Python code and traceback below.
 Return ONLY a JSON object in this format:
+
 {{
   "error_lines": [line_numbers]
 }}
@@ -96,21 +104,21 @@ TRACEBACK:
     return response.output_parsed["error_lines"]
 
 
-# ------------------ Endpoint ------------------
+# ---------------- Main Endpoint ----------------
 
 @app.post("/code-interpreter", response_model=CodeResponse)
 async def code_interpreter(request: CodeRequest):
 
     execution = execute_python_code(request.code)
 
-    # If success → don't call AI
+    # ✅ If success → don't call AI
     if execution["success"]:
         return {
             "error": [],
             "result": execution["output"]
         }
 
-    # If error → call AI
+    # ❌ If error → call AI
     error_lines = analyze_error_with_ai(
         request.code,
         execution["output"]
@@ -122,6 +130,9 @@ async def code_interpreter(request: CodeRequest):
     }
 
 
+# ---------------- Render Safe Startup ----------------
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=10000)
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
