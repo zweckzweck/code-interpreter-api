@@ -1,0 +1,1 @@
+[![Daily Auto Commit](https://github.com/zweckzweck/code-interpreter-api/actions/workflows/daily-commit.yml/badge.svg)](https://github.com/zweckzweck/code-interpreter-api/actions/workflows/daily-commit.yml)
